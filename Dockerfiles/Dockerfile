@@ -1,6 +1,7 @@
-ARG UBUNTU_VER=20.04
-
-FROM ubuntu:$UBUNTU_VER
+# RTX4080 means sm_89 cuda architecture.
+# sm_89 is supported from 11.8 version.
+# ref: https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 ENV TZ=Asia/Tokyo
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -18,6 +19,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     git-lfs \
     vim \
     silversearcher-ag \
+    build-essential \
     python3-dev \
     python3-pip \
     p7zip-full \
