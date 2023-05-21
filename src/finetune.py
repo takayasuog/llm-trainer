@@ -186,6 +186,8 @@ def main():
             peft.set_peft_model_state_dict(model, adapters_weights)
         else:
             print(f"Checkpoint {checkpoint_name} not found")
+    else:
+        conf.resume_from_checkpoint = False
 
     # Be more transparent about the % of trainable params.
     model.print_trainable_parameters()

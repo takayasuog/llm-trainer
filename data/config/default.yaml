@@ -10,7 +10,7 @@ num_of_gpus: 1
 batch_size: 128
 micro_batch_size: 4
 num_epochs: 3
-learning_rate: 3e-4
+learning_rate: 3.0e-4
 cutoff_len: 256
 val_set_size: 2000
 
