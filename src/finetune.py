@@ -6,8 +6,10 @@ import warnings
 
 import datasets
 from transformers import (
+    AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
+    GPTNeoXTokenizerFast,
     BitsAndBytesConfig,
     DataCollatorForSeq2Seq,
     Trainer,
@@ -16,7 +18,8 @@ from transformers import (
 from transformers.tokenization_utils_base import logger as tokenization_logger
 
 from configs.finetune_config import FinetuneConfig
-from prompt.prompter import Prompter
+from utils.deepspeed import get_train_ds_config
+from utils.prompter import Prompter
 
 warnings.filterwarnings(
     "ignore",
@@ -27,6 +30,10 @@ warnings.filterwarnings(
 
 # Arg definitions
 parser = argparse.ArgumentParser(description="finetune llm model using lora")
+parser.add_argument(
+    "--local_rank",
+    default="",
+    help="dummy")
 parser.add_argument(
     "--conf_path",
     default="/home/user0/work/data/config/default.yaml",
@@ -115,10 +122,22 @@ def load_model(conf: FinetuneConfig, device_map: any) -> tuple[AutoModelForCausa
     # model = peft.prepare_model_for_int8_training(model)
 
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        conf.base_model,
-        use_fast=False,
-    )
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            conf.base_model,
+            use_fast=False,
+            cache_dir=conf.model_cache_dir,
+        )
+    except ValueError as e:
+        model_config = AutoConfig.from_pretrained(conf.base_model)
+        if model_config.model_type == "gpt_neox":
+            tokenizer = GPTNeoXTokenizerFast.from_pretrained(
+                conf.base_model,
+                use_fast=False,
+                cache_dir=conf.model_cache_dir,
+            )
+        else:
+            raise
 
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
@@ -200,6 +219,7 @@ def main():
         conf.cutoff_len,
         conf.add_eos_token
     )
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     if conf.val_set_size > 0:
         train_val = data["train"].train_test_split(
@@ -227,6 +247,7 @@ def main():
         model.is_parallelizable = True
         model.model_parallel = True
 
+    ds_config = get_train_ds_config(offload=True, conf=conf)
     use_wandb = False
     trainer = Trainer(
         model=model,
@@ -252,6 +273,7 @@ def main():
             group_by_length=conf.group_by_length,
             report_to="wandb" if use_wandb else None,
             run_name=conf.wandb_run_name if use_wandb else None,
+            deepspeed=ds_config,
         ),
         data_collator=DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True

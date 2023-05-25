@@ -1,5 +1,6 @@
 # model/data params
 base_model: "rinna/japanese-gpt-neox-3.6b-instruction-sft" # the only required argument
+# base_model: "cyberagent/open-calm-7b"
 data_path: "/home/user0/work/data/datasets/alpaca_ja/alpaca_cleaned_ja.json"
 output_dir: "./lora-alpaca"
 model_cache_dir: "/home/user0/work/data/model"
@@ -8,7 +9,7 @@ model_cache_dir: "/home/user0/work/data/model"
 local_rank: 0
 num_of_gpus: 1
 batch_size: 128
-micro_batch_size: 4
+micro_batch_size: 8
 num_epochs: 3
 learning_rate: 3.0e-4
 cutoff_len: 256
@@ -30,3 +31,12 @@ prompt_template_dir_path: "/home/user0/work/data/prompt"  # Prompt template to u
 
 # wandb params
 wandb_run_name: "mywandb"
+
+# deepspeed params
+stage: 3
+enable_hybrid_engine: False
+inference_tp_size: 1
+release_inference_cache: False
+pin_parameters: True
+tp_gather_partition_size: 8
+max_out_tokens: 512

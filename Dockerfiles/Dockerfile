@@ -20,6 +20,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     vim \
     silversearcher-ag \
     build-essential \
+    libopenmpi-dev \
     python3-dev \
     python3-pip \
     p7zip-full \
@@ -54,6 +55,8 @@ RUN python -m pip install --no-cache-dir --user --upgrade pip \
         jupyter \
         datasets \
         peft \
+        deepspeed \
+        mpi4py \
     && python -m pip install --no-cache-dir --user --upgrade \
         torch --index-url https://download.pytorch.org/whl/cu118
 

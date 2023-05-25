@@ -10,6 +10,14 @@ class FinetuneConfig(Config):
     model_cache_dir: str 
     # wandb params
     wandb_run_name: str
+    # deepspeed params
+    stage: int
+    enable_hybrid_engine: bool
+    inference_tp_size: int
+    release_inference_cache: bool
+    pin_parameters: bool
+    tp_gather_partition_size: int
+    max_out_tokens: int
     # training hyperparams
     local_rank: int
     num_of_gpus: int

@@ -4,6 +4,9 @@
         "dockerfile": "../Dockerfiles/Dockerfile",
         "context": "../../../"
     },
+    "mounts": [
+        "type=bind,consistency=cached,source=/home/takaki/.ds_offload_cache,target=/home/user0/.ds_offload_cache"
+	],
 
     "runArgs": ["--gpus", "all","--shm-size","32gb"],
     "workspaceFolder": "/home/user0/work",
