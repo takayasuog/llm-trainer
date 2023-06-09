@@ -4,6 +4,7 @@ import peft
 import torch
 import warnings
 
+import bitsandbytes as bnb
 import datasets
 from transformers import (
     AutoConfig,
@@ -104,23 +105,35 @@ class TokenizerHelper:
 
 
 def load_model(conf: FinetuneConfig, device_map: any) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
-    quantization_config = BitsAndBytesConfig(llm_int8_enable_fp32_cpu_offload=True)
+    n_gpus = torch.cuda.device_count()
+    max_memory = f'{conf.max_memory_MB}MB'
+    max_memory = {i: max_memory for i in range(n_gpus)}
+
+    compute_dtype = torch.bfloat16
+    quantization_config=BitsAndBytesConfig(
+        load_in_4bit=True,
+        load_in_8bit=False,
+        llm_int8_threshold=6.0,
+        llm_int8_has_fp16_weight=False,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=compute_dtype,
+        bnb_4bit_quant_type="nf4", # {'fp4', 'nf4'}
+    )
     model = AutoModelForCausalLM.from_pretrained(
         conf.base_model,
-        trust_remote_code=True,
-        load_in_8bit=True,
-        torch_dtype=torch.float16,
+        load_in_4bit=True,
+        load_in_8bit=False,
         device_map=device_map,
+        max_memory=max_memory,
         quantization_config=quantization_config,
+        torch_dtype=torch.bfloat16,
+        trust_remote_code=True,
         cache_dir=conf.model_cache_dir,
     )
 
-    # 8-bit training
-    # had to turn int8 training off for some reason. could it be the titan rtx?
-    # turned it on and kinda working now, but wtf?
-
-    # model = peft.prepare_model_for_int8_training(model)
-
+    model.config.torch_dtype=torch.bfloat16
+    model = peft.prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    model.gradient_checkpointing_enable()
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(
@@ -145,19 +158,51 @@ def load_model(conf: FinetuneConfig, device_map: any) -> tuple[AutoModelForCausa
     return model, tokenizer
 
 
+def find_all_linear_names(model: AutoModelForCausalLM) -> list:
+    lora_module_names = set()
+    for name, module in model.named_modules():
+        if isinstance(module, bnb.nn.Linear4bit):
+            names = name.split('.')
+            lora_module_names.add(names[0] if len(names) == 1 else names[-1])
+
+    if 'lm_head' in lora_module_names: # needed for 16-bit
+        lora_module_names.remove('lm_head')
+
+    return list(lora_module_names)
+
+
 def apply_lora(model:AutoModelForCausalLM, conf: FinetuneConfig) -> AutoModelForCausalLM:
     #
     # LoRA
     #
+    modules = find_all_linear_names(model)
     config = peft.LoraConfig(
         r=conf.lora_r,
         lora_alpha=conf.lora_alpha,
-        target_modules=conf.lora_target_modules,
+        target_modules=modules,
         lora_dropout=conf.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
     )
+
     model = peft.get_peft_model(model, config)
+    if hasattr(model, "enable_input_require_grads"):
+        model.enable_input_require_grads()
+    else:
+        def make_inputs_require_grad(module, input, output):
+            output.requires_grad_(True)
+        model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+
+    for name, module in model.named_modules():
+        if isinstance(module, peft.tuners.lora.LoraLayer):
+            module = module.to(torch.bfloat16)
+        if 'norm' in name:
+            module = module.to(torch.float32)
+        if 'lm_head' in name or 'embed_tokens' in name:
+            if hasattr(module, 'weight'):
+                if module.weight.dtype == torch.float32:
+                    module = module.to(torch.bfloat16)
+
     return model
 
 
@@ -168,6 +213,20 @@ def load_dataset(conf: FinetuneConfig):
         data = datasets.load_dataset(conf.data_path)
     
     return data
+
+
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    trainable_params /= 2
+    print(f"trainable params: {trainable_params} || all params: {all_param} || trainable: {100 * trainable_params / all_param}")
 
 
 def main():
@@ -209,7 +268,7 @@ def main():
         conf.resume_from_checkpoint = False
 
     # Be more transparent about the % of trainable params.
-    model.print_trainable_parameters()
+    print_trainable_parameters(model)
 
     data = load_dataset(conf)
     tokenizer_helper = TokenizerHelper(
@@ -259,9 +318,9 @@ def main():
             warmup_steps=100,
             num_train_epochs=conf.num_epochs,
             learning_rate=conf.learning_rate,
-            fp16=True,
             logging_steps=10,
-            optim="adamw_torch",
+            optim="paged_adamw_32bit",
+            bf16=True,
             evaluation_strategy="steps" if conf.val_set_size > 0 else "no",
             save_strategy="steps",
             eval_steps=200 if conf.val_set_size > 0 else None,

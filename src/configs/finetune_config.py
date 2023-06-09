@@ -27,6 +27,8 @@ class FinetuneConfig(Config):
     learning_rate: float
     cutoff_len: int
     val_set_size: int
+    max_memory_MB: int
+
     # lora hyperparams
     lora_r: int
     lora_alpha: int

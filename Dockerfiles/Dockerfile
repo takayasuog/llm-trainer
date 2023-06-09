@@ -40,6 +40,8 @@ RUN useradd --create-home --shell /bin/bash -G sudo,root ${username} \
 USER ${username}
 ENV PATH="/home/${username}/.local/bin:${PATH}"
 
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.8/targets/x86_64-linux/lib
+
 RUN python -m pip install --no-cache-dir --user --upgrade pip \
     && python -m pip install --no-cache-dir --user --upgrade setuptools wheel \
     && python -m pip install --no-cache-dir --user --upgrade \
@@ -51,6 +53,8 @@ RUN python -m pip install --no-cache-dir --user --upgrade pip \
         tqdm \
         transformers \
         accelerate \
+        bitsandbytes \
+        scipy \
         sentencepiece \
         jupyter \
         datasets \
