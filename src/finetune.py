@@ -5,7 +5,6 @@ import torch
 import warnings
 
 import bitsandbytes as bnb
-import datasets
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -19,6 +18,7 @@ from transformers import (
 from transformers.tokenization_utils_base import logger as tokenization_logger
 
 from configs.finetune_config import FinetuneConfig
+from utils.datasets import load_dataset
 from utils.deepspeed import get_train_ds_config
 from utils.prompter import Prompter
 
@@ -204,15 +204,6 @@ def apply_lora(model:AutoModelForCausalLM, conf: FinetuneConfig) -> AutoModelFor
                     module = module.to(torch.bfloat16)
 
     return model
-
-
-def load_dataset(conf: FinetuneConfig):
-    if conf.data_path.endswith(".json") or conf.data_path.endswith(".jsonl"):
-        data = datasets.load_dataset("json", data_files=conf.data_path)
-    else:
-        data = datasets.load_dataset(conf.data_path)
-    
-    return data
 
 
 def print_trainable_parameters(model):
