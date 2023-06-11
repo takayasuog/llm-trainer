@@ -297,7 +297,7 @@ def main():
         model.is_parallelizable = True
         model.model_parallel = True
 
-    ds_config = get_train_ds_config(offload=True, conf=conf)
+    ds_config = get_train_ds_config(offload=True, conf=conf) if conf.deepspeed_enabled else None
     use_wandb = False
     trainer = Trainer(
         model=model,

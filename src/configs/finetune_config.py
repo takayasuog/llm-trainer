@@ -11,6 +11,7 @@ class FinetuneConfig(Config):
     # wandb params
     wandb_run_name: str
     # deepspeed params
+    deepspeed_enabled: bool
     stage: int
     enable_hybrid_engine: bool
     inference_tp_size: int

@@ -34,6 +34,7 @@ prompt_template_dir_path: "/home/user0/work/data/prompt"  # Prompt template to u
 wandb_run_name: "mywandb"
 
 # deepspeed params
+deepspeed_enabled: False
 stage: 3
 enable_hybrid_engine: False
 inference_tp_size: 1
