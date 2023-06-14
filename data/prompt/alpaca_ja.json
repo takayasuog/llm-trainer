@@ -1,0 +1,6 @@
+{
+    "description": "Template used by Alpaca-ja.",
+    "prompt_input": "以下は、タスクを説明する指示と、さらなる追加の説明を提供する入力との組み合わせです。この入力を考慮し、指示に対して適切に回答してください。\n\n### 指示:\n{instruction}\n\n### 入力:\n{input}\n\n### 回答:\n",
+    "prompt_no_input": "以下は、タスクを説明する指示です。この指示に対して適切に回答してください。\n\n### 指示:\n{instruction}\n\n### 回答:\n",
+    "response_split": "### 回答:"    
+}

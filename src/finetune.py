@@ -175,7 +175,8 @@ def apply_lora(model:AutoModelForCausalLM, conf: FinetuneConfig) -> AutoModelFor
     #
     # LoRA
     #
-    modules = find_all_linear_names(model)
+    modules:list = find_all_linear_names(model) \
+                        if not conf.lora_target_modules else conf.lora_target_modules
     config = peft.LoraConfig(
         r=conf.lora_r,
         lora_alpha=conf.lora_alpha,
