@@ -121,14 +121,15 @@ def load_model(conf: FinetuneConfig, device_map: any) -> tuple[AutoModelForCausa
     )
     model = AutoModelForCausalLM.from_pretrained(
         conf.base_model,
-        load_in_4bit=True,
-        load_in_8bit=False,
+        # load_in_4bit=True,
+        # load_in_8bit=False,
         device_map=device_map,
         max_memory=max_memory,
         quantization_config=quantization_config,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         cache_dir=conf.model_cache_dir,
+        attn_implementation="eager",
     )
 
     model.config.torch_dtype=torch.bfloat16
